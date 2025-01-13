@@ -57,8 +57,6 @@ public class lens {
     }
 
 
-    double a = 299705;
-    double g = 200000;
     public float refractionIndex(particle point, float[][] pointData) {
 
         float newY = face1.height - (point.coordinate[1]-topOffset);
@@ -115,7 +113,7 @@ public class lens {
         System.out.println("Angle between two slopes(Radians): " + angleRad);
 
         // snell's law
-        double refractionAngleRad = 0;
+        double refractionAngleRad;
         double refractionFromOrigin = 0;
         if (face1.getX(newY)-tolerance <= point.coordinate[0] && point.coordinate[0] <= face1.getX(newY)+tolerance) {
             // air to glass
