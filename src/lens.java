@@ -8,8 +8,9 @@ public class lens {
     face face2;
 
     int topOffset;
-
+    float tolerance = 0.5f;
     PApplet applet;
+
     public lens(face face1, face face2, PApplet applet, int topOffset) {
         this.face1 = face1;
         this.face2 = face2;
@@ -49,13 +50,13 @@ public class lens {
         // y coordinate conversion
         float newY = face1.height - (coordinate[1]-topOffset);
 
-        boolean face1Bool = face1.getX(newY)-1 <= coordinate[0] && coordinate[0] <= face1.getX(newY)+1;
-        boolean face2Bool = face2.getX(newY)-1 <= coordinate[0] && coordinate[0] <= face2.getX(newY)+1;
+        boolean face2Bool = face2.getX(newY)-tolerance <= coordinate[0] && coordinate[0] <= face2.getX(newY)+tolerance;
+        boolean face1Bool = face1.getX(newY)-tolerance <= coordinate[0] && coordinate[0] <= face1.getX(newY)+tolerance;
 
-        return  face1Bool || face2Bool;
+        return  (face1Bool || face2Bool) && (-face1.getHeight() <= newY && newY <= face1.getHeight()) ;
     }
 
-    // TODO
+
     double a = 299705;
     double g = 200000;
     public float refractionIndex(particle point, float[][] pointData) {
@@ -70,30 +71,32 @@ public class lens {
         float pointSlope = point.getSlope();
 
         // lens normal slope
-        System.out.println(newY);
+        System.out.println("Y value: " + newY);
         // decide which lens to use
         double lensSlope;
         System.out.println(point.coordinate[0]- face1.origin[0]);                                                            // TODO: face1.offset is apparently really important lol
-        if (face1.getX(newY)-1 <= point.coordinate[0] && point.coordinate[0] <= face1.getX(newY)+1) {
+        if (face1.getX(newY)-tolerance <= point.coordinate[0] && point.coordinate[0] <= face1.getX(newY)+tolerance) {
             // use face1
-            lensSlope = (-1/face1.getSlope(newY)); // get normal from tangent slope
+            System.out.println("Preprocess Slope: " + face1.getSlope(newY));
+            lensSlope = (face1.getSlope(newY)); // get normal from tangent slope
             System.out.println("ping");
-        } else if (face2.getX(newY)-1 <= point.coordinate[0] && point.coordinate[0] <= face2.getX(newY)+1) {
+        } else if (face2.getX(newY)-tolerance <= point.coordinate[0] && point.coordinate[0] <= face2.getX(newY)+tolerance) {
             //use face2
-            lensSlope = (-1/face2.getSlope(newY)); // get normal from tangent slope
+            lensSlope = (face2.getSlope(newY)); // get normal from tangent slope
             System.out.println("pong");
         } else {
             lensSlope = 0;
         }
+
+        // Infinity catch
         if (lensSlope == Double.POSITIVE_INFINITY || lensSlope == Double.NEGATIVE_INFINITY) {
             lensSlope = 0;
         }
 
-        System.out.printf("lensSlope: %f", (float) lensSlope);
+        System.out.printf("lensSlope: %f\n", (float) lensSlope);
 
 
         //drawLine(pointSlope, 0, new int[]{150,0,150});
-        System.out.println();
         //drawLine((float) lensSlope, (float)(point.coordinate[1]-(lensSlope*point.coordinate[0])), new int[]{150,150,0});
 
         //drawLine((float)(face2.getSlope(point.coordinate[1])), 100, new int[]{255,118,0});
@@ -108,44 +111,32 @@ public class lens {
         }
 
         // get angle between the two lines
-        double angleDeg = Math.tanh( Math.abs( (pointSlope-lensSlope)/(1+(pointSlope*lensSlope) ) ) );
+        double angleRad = Math.atan( Math.abs( (pointSlope-lensSlope)/(1+(pointSlope*lensSlope) ) ) );
+        System.out.println("Angle between two slopes(Radians): " + angleRad);
 
         // snell's law
-        double refractionAngleDeg = 0;
-        if (face1.getX(newY)-1 <= point.coordinate[0] && point.coordinate[0] <= face1.getX(newY)+1) {
+        double refractionAngleRad = 0;
+        double refractionFromOrigin = 0;
+        if (face1.getX(newY)-tolerance <= point.coordinate[0] && point.coordinate[0] <= face1.getX(newY)+tolerance) {
             // air to glass
-            refractionAngleDeg = Math.sinh( Math.sin(angleDeg)/(1.5));
+            refractionAngleRad = Math.asin( Math.sin(angleRad)/1.5);
+            System.out.println("Snell's law refraction angle: " + refractionAngleRad);
             System.out.println("air to glass");
-        } else if (face2.getX(newY)-1 <= point.coordinate[0] && point.coordinate[0] <= face2.getX(newY)+1) {
+            refractionFromOrigin = angleRad - refractionAngleRad;
+        } else if (face2.getX(newY)-tolerance <= point.coordinate[0] && point.coordinate[0] <= face2.getX(newY)+tolerance) {
             // glass to air
-            refractionAngleDeg = Math.sinh(Math.sin(angleDeg) / (0.67));
+            refractionAngleRad = Math.asin( 1.5*Math.sin(angleRad));
+            System.out.println("Snell's law refraction angle: " + refractionAngleRad);
             System.out.println("glass to air");
+            refractionFromOrigin = refractionAngleRad;
         }
-
-        //
-        double refractionFromOrigin = angleDeg-refractionAngleDeg;
-
-        // convert to radians
-        float amplification = 10;
-        double refractionAngleRad = Math.toRadians(refractionFromOrigin) * amplification;
-        System.out.println((float) refractionAngleRad);
+        System.out.println("Refraction angle from origin line: " + refractionFromOrigin);
 
 
         // determine sign switch
         if (newY > 0) { // refraction occurred above the midpoint
-            return (float) refractionAngleRad; // return negative radian value
+            return (float) refractionFromOrigin; // return negative radian value
         }
-
-        return (float) -refractionAngleRad; // return positive radian value (refraction occurred below the midpoint)
-
+        return (float) -refractionFromOrigin; // return positive radian value (refraction occurred below the midpoint)
     }
-
-    public void drawLine(float m, float b, int[] rgb) {
-        for (int i = 200; i != 400; i++) {
-            applet.fill(rgb[0], rgb[1], rgb[2]);
-            System.out.printf("(%f,%f)",m*i+b,Math.abs(i-b/m));
-            applet.ellipse(m*i+b+600,Math.abs(i-b/m)+100, 10, 10);
-        }
-    }
-
 }

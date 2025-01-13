@@ -4,6 +4,8 @@ public class particle {
     float velocity;
     float[] coordinate = new float[2];
 
+    boolean isAlive = true;
+
     public particle(float angularDirection, float velocity ,float x, float y) {
         this.angularDirection = angularDirection;
         this.velocity = velocity;
